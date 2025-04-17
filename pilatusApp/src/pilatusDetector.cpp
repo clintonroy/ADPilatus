@@ -55,6 +55,7 @@
 #define CAMSERVER_RESET_POWER_TIMEOUT 30.
 /** Time between checking to see if image file is complete */
 #define FILE_READ_DELAY .01
+#define MAX_ROI_STRING_LEN 4
 
 /** Trigger modes */
 typedef enum {
@@ -124,6 +125,7 @@ static const char *driverName = "pilatusDetector";
 #define PilatusTvxVersionString     "TVXVERSION"
 #define PilatusCbfTemplateFileString "CBFTEMPLATEFILE"
 #define PilatusHeaderStringString   "HEADERSTRING"
+#define PilatusROIStringString      "ROISTRING"
 
 
 /** Driver for Dectris Pilatus pixel array detectors using their camserver server over TCP/IP socket */
@@ -193,6 +195,7 @@ protected:
     int PilatusTvxVersion;
     int PilatusCbfTemplateFile;
     int PilatusHeaderString;
+    int PilatusROIString;
 
  private:                                       
     /* These are the methods that are new to this class */
@@ -753,6 +756,7 @@ asynStatus pilatusDetector::setAcquireParams()
     asynStatus status;
     char *substr = NULL;
     int pixelCutOff = 0;
+    char roiString[MAX_ROI_STRING_LEN];
     
     status = getIntegerParam(ADTriggerMode, &triggerMode);
     if (status != asynSuccess) triggerMode = TMInternal;
@@ -801,6 +805,15 @@ asynStatus pilatusDetector::setAcquireParams()
         setDoubleParam(PilatusDelayTime, dval);
     }
     epicsSnprintf(this->toCamserver, sizeof(this->toCamserver), "delay %f", dval);
+    writeReadCamserver(CAMSERVER_DEFAULT_TIMEOUT);
+
+    status = getStringParam(PilatusROIString, MAX_ROI_STRING_LEN, roiString);
+    if ((status != asynSuccess) || (strcmp(roiString, "") == 0)) {
+        roiString[0] = '0';
+	roiString[1] = '\0';
+	setStringParam(PilatusROIString, roiString);
+    }
+    epicsSnprintf(this->toCamserver, sizeof(this->toCamserver), "setroi %s", roiString);
     writeReadCamserver(CAMSERVER_DEFAULT_TIMEOUT);
 
     status = getIntegerParam(PilatusGapFill, &ival);
@@ -1224,7 +1237,10 @@ void pilatusDetector::pilatusTask()
                 } 
                 /* Put the frame number and time stamp into the buffer */
                 pImage->uniqueId = imageCounter;
-                updateTimeStamps(pImage);
+
+                //updateTimeStamps(pImage);
+		pImage->timeStamp = startTime.secPastEpoch + startTime.nsec / 1.e9;
+		updateTimeStamp(&pImage->epicsTS);
 
                 /* Get any attributes that have been defined for this driver */        
                 this->getAttributes(pImage->pAttributeList);
@@ -1778,6 +1794,7 @@ pilatusDetector::pilatusDetector(const char *portName, const char *camserverPort
     createParam(PilatusTvxVersionString,     asynParamOctet,   &PilatusTvxVersion);
     createParam(PilatusCbfTemplateFileString,asynParamOctet,   &PilatusCbfTemplateFile);
     createParam(PilatusHeaderStringString,   asynParamOctet,   &PilatusHeaderString);
+    createParam(PilatusROIStringString,      asynParamOctet,   &PilatusROIString);
 
     /* Set some default values for parameters */
     status =  setStringParam (ADManufacturer, "Dectris");
@@ -1813,6 +1830,7 @@ pilatusDetector::pilatusDetector(const char *portName, const char *camserverPort
     setDoubleParam(PilatusThHumid2, 0);
     setStringParam(PilatusTvxVersion, "Unknown");
     setStringParam(PilatusHeaderString, "");
+    setStringParam(PilatusROIString, "0");
 
     if (status) {
         printf("%s: unable to set camera parameters\n", functionName);
