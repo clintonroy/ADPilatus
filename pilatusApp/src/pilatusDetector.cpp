@@ -47,6 +47,7 @@
 #define MAX_FILENAME_LEN 256
 #define MAX_HEADER_STRING_LEN 68
 #define MAX_BAD_PIXELS 100
+#define MAX_ROI_STRING_LEN 4
 /** Time to poll when reading from camserver */
 #define ASYN_POLL_TIME .01 
 #define CAMSERVER_DEFAULT_TIMEOUT 1.0
@@ -55,7 +56,7 @@
 #define CAMSERVER_RESET_POWER_TIMEOUT 30.
 /** Time between checking to see if image file is complete */
 #define FILE_READ_DELAY .01
-#define MAX_ROI_STRING_LEN 4
+
 
 /** Trigger modes */
 typedef enum {
